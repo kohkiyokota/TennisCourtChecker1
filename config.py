@@ -9,7 +9,7 @@ load_dotenv(dotenv_path)
 # .envから環境変数を読み込み
 LINE_NOTIFY_TOKEN = os.environ['LINE_NOTIFY_TOKEN']
 
-PARKS1 = os.environ['PARKS1'].replace(' ', '')
+PARKS = os.environ['PARKS'].replace(' ', '')
 
 # DAYSOFWEEK = os.environ['DAYSOFWEEK'].replace(' ', '')
 # START = int(os.environ['START'].replace(' ', ''))

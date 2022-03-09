@@ -122,8 +122,8 @@ def main():
     # # ################################
 
     # 環境変数に設定されている公園を取得（東京都スポーツ施設サービス）
-    PARKS1 = config.PARKS1
-    parks1_array = PARKS1.split(',')
+    PARKS = config.PARKS
+    parks_array = PARKS.split(',')
 
     driver = webdriver.Chrome(executable_path=ChromeDriverManager().install(), options=options)
     driver.implicitly_wait(60)
@@ -136,7 +136,7 @@ def main():
     # # ################################
     # # 公園名ごとにデータを取得
     # # ################################
-    for park in parks1_array:
+    for park in parks_array:
         parks_nums = len(driver.find_elements_by_xpath('//*[@id="resultItems"]/tr'))
         for i in range(parks_nums):
             # ①合致する公園名があれば次へ
