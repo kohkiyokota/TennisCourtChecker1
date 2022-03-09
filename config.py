@@ -8,6 +8,7 @@ load_dotenv(dotenv_path)
 # Herokuで実行時では.envがないので上記コードでは何も起こらない
 # .envから環境変数を読み込み
 LINE_NOTIFY_TOKEN = os.environ['LINE_NOTIFY_TOKEN']
+LNT_FOR_ERROR = os.environ['LNT_FOR_ERROR']
 
 PARKS = os.environ['PARKS'].replace(' ', '')
 

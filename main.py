@@ -60,199 +60,211 @@ def writeCsv(data, fname='history.csv'):
 
 
 def main():
-    # 「東京都スポーツ施設サービス」のURL
-    url1 = 'https://yoyaku.sports.metro.tokyo.lg.jp/user/view/user/homeIndex.html'
+    for i in range(3):  # 最大3回実行
+        try:
+            # 「東京都スポーツ施設サービス」のURL
+            url1 = 'https://yoyaku.sports.metro.tokyo.lg.jp/user/view/user/homeIndex.html'
 
-    # # ################################
-    # # 日時を取得・計算
-    # # ################################
-    today = datetime.today()
-    today_year =  int('20' + datetime.strftime(today, '%y'))
+            # # ################################
+            # # 日時を取得・計算
+            # # ################################
+            today = datetime.today()
+            today_year =  int('20' + datetime.strftime(today, '%y'))
 
-    today_month = datetime.strftime(today, '%m')
-    if today_month[0] == '0':
-      today_month = today_month[1:2]
-    today_month = int(today_month)
+            today_month = datetime.strftime(today, '%m')
+            if today_month[0] == '0':
+              today_month = today_month[1:2]
+            today_month = int(today_month)
 
-    today_day = datetime.strftime(today, '%d')
-    if today_day[0] == '0':
-      today_day = today_day[1:2]
-    today_day = int(today_day)
+            today_day = datetime.strftime(today, '%d')
+            if today_day[0] == '0':
+              today_day = today_day[1:2]
+            today_day = int(today_day)
 
-    if today_month == 12:
-      next_month = 1
-      next_year = today_year + 1
-    else:
-      next_month = today_month + 1 # 来月
-      next_year = today_year
+            if today_month == 12:
+              next_month = 1
+              next_year = today_year + 1
+            else:
+              next_month = today_month + 1 # 来月
+              next_year = today_year
 
-    # today_year
-    # today_month
-    # today_day
-    # next_month
-    # next_year
+            # today_year
+            # today_month
+            # today_day
+            # next_month
+            # next_year
 
-    # # ################################
-    # # 設定をもとに曜日と日時の配列を作成
-    # # ################################
+            # # ################################
+            # # 設定をもとに曜日と日時の配列を作成
+            # # ################################
 
-    # 曜日と日時の配列
-    dayOfWeek_array = calcDayOfWeek()
-    print(dayOfWeek_array)
+            # 曜日と日時の配列
+            dayOfWeek_array = calcDayOfWeek()
+            print(dayOfWeek_array)
 
-    this_holidays = []
-    next_holidays = []
+            this_holidays = []
+            next_holidays = []
 
-    # もし曜日指定に「祝日」が入っていたら
-    if len(config.HOL) > 0:
-        print('祝日入ってる')
-        # 今月の祝日を取得
-        for hl1 in jpholiday.month_holidays(today_year, today_month):
-          this_holidays.append(hl1[0].day)
+            # もし曜日指定に「祝日」が入っていたら
+            if len(config.HOL) > 0:
+                print('祝日入ってる')
+                # 今月の祝日を取得
+                for hl1 in jpholiday.month_holidays(today_year, today_month):
+                  this_holidays.append(hl1[0].day)
 
-        # 来月の祝日を取得 
-        for hl2 in jpholiday.month_holidays(next_year, next_month):
-          next_holidays.append(hl2[0].day)
+                # 来月の祝日を取得 
+                for hl2 in jpholiday.month_holidays(next_year, next_month):
+                  next_holidays.append(hl2[0].day)
 
-    print(this_holidays)
-    print(next_holidays)
+            print(this_holidays)
+            print(next_holidays)
 
-    # # ################################
-    # # 公園名ごとにデータを取得（下準備）
-    # # ################################
+            # # ################################
+            # # 公園名ごとにデータを取得（下準備）
+            # # ################################
 
-    # 環境変数に設定されている公園を取得（東京都スポーツ施設サービス）
-    PARKS = config.PARKS
-    parks_array = PARKS.split(',')
+            # 環境変数に設定されている公園を取得（東京都スポーツ施設サービス）
+            PARKS = config.PARKS
+            parks_array = PARKS.split(',')
 
-    driver = webdriver.Chrome(executable_path=ChromeDriverManager().install(), options=options)
-    driver.implicitly_wait(60)
-    driver.get(url1)
+            driver = webdriver.Chrome(executable_path=ChromeDriverManager().install(), options=options)
+            driver.implicitly_wait(60)
+            driver.get(url1)
 
-    # step1: 公園選択画面へ行く
-    btn = driver.find_element_by_xpath('//*[@id="nameSearch"]')
-    btn.click()
+            # step1: 公園選択画面へ行く
+            btn = driver.find_element_by_xpath('//*[@id="nameSearch"]')
+            btn.click()
 
-    # # ################################
-    # # 公園名ごとにデータを取得
-    # # ################################
-    for park in parks_array:
-        parks_nums = len(driver.find_elements_by_xpath('//*[@id="resultItems"]/tr'))
-        for i in range(parks_nums):
-            # ①合致する公園名があれば次へ
-            if driver.find_element_by_xpath(f'//*[@id="resultItems"]/tr[{str(i + 1)}]/td[1]/span').text == park:
-                print(f'「{park}」の情報の取得を開始')
-                # result.append(park)
-                # 公園のページへ移動
-                btn_list = driver.find_elements_by_xpath('//*[@id="srchBtn"]')                
-                btn_list[i].click()
+            # # ################################
+            # # 公園名ごとにデータを取得
+            # # ################################
+            for park in parks_array:
+                parks_nums = len(driver.find_elements_by_xpath('//*[@id="resultItems"]/tr'))
+                for i in range(parks_nums):
+                    # ①合致する公園名があれば次へ
+                    if driver.find_element_by_xpath(f'//*[@id="resultItems"]/tr[{str(i + 1)}]/td[1]/span').text == park:
+                        print(f'「{park}」の情報の取得を開始')
+                        # result.append(park)
+                        # 公園のページへ移動
+                        btn_list = driver.find_elements_by_xpath('//*[@id="srchBtn"]')                
+                        btn_list[i].click()
 
-                # カレンダーの段数を計算
-                rows_num = len(driver.find_elements_by_xpath('//*[@id="calendar"]/table[2]/tbody/tr'))
+                        # カレンダーの段数を計算
+                        rows_num = len(driver.find_elements_by_xpath('//*[@id="calendar"]/table[2]/tbody/tr'))
 
-                for row in range(rows_num):
-                    # １段目は曜日なので飛ばす
-                    if row > 0:
-                        # 指定された曜日を検索
-                        for dow_se in dayOfWeek_array:
-                            # 指定された曜日であれば
-                            if dow_se != 0:
-                                day = driver.find_element_by_xpath(f'//*[@id="calendar"]/table[2]/tbody/tr[{row + 1}]/td[{dayOfWeek_array.index(dow_se) + 1}]')
-                                # 日付があり、今日以降で、祝日じゃなければ日付をクリックして空きをチェック
-                                if day.text and int(day.text) >= today_day and int(day.text) not in this_holidays:
-                                    date = day.text # 日付：クリックすると変わってしまうから変数に入れとく
-                                    day.click()
-                                    # 空きをチェック
-                                    checkEmpty(driver, park, today_month, date, dow_se)
-
-                # 祝日を検索
-                for h in this_holidays:
-                    if h >= today_day:
                         for row in range(rows_num):
+                            # １段目は曜日なので飛ばす
                             if row > 0:
-                                for col in range(6):
-                                    d = driver.find_element_by_xpath(f'//*[@id="calendar"]/table[2]/tbody/tr[{row + 1}]/td[{col + 1}]')
-                                    if len(d.text) > 0 and int(d.text) == h:
-                                        d.click()
-                                        # 空きをチェック
-                                        hol_se = config.HOL.split('-')
-                                        if col == 0:
-                                            hol_se.insert(0, '日祝')
-                                        if col == 1:
-                                            hol_se.insert(0, '月祝')
-                                        if col == 2:
-                                            hol_se.insert(0, '火祝')
-                                        if col == 3:
-                                            hol_se.insert(0, '水祝')
-                                        if col == 4:
-                                            hol_se.insert(0, '木祝')
-                                        if col == 5:
-                                            hol_se.insert(0, '金祝')
-                                        if col == 6:
-                                            hol_se.insert(0, '土祝')
-                                        checkEmpty(driver, park, today_month, date, hol_se)
+                                # 指定された曜日を検索
+                                for dow_se in dayOfWeek_array:
+                                    # 指定された曜日であれば
+                                    if dow_se != 0:
+                                        day = driver.find_element_by_xpath(f'//*[@id="calendar"]/table[2]/tbody/tr[{row + 1}]/td[{dayOfWeek_array.index(dow_se) + 1}]')
+                                        # 日付があり、今日以降で、祝日じゃなければ日付をクリックして空きをチェック
+                                        if day.text and int(day.text) >= today_day and int(day.text) not in this_holidays:
+                                            date = day.text # 日付：クリックすると変わってしまうから変数に入れとく
+                                            day.click()
+                                            # 空きをチェック
+                                            checkEmpty(driver, park, today_month, date, dow_se)
 
-                # 翌月へ移動
-                print('今月最終日なので翌月に移動します')
-                next_btn = driver.find_element_by_xpath('//*[@id="calendar"]/table[1]/tbody/tr/td/div/a')
-                next_btn.click()
-                print('翌月のチェックを開始')
-                checkNextMonth(driver, dayOfWeek_array, park, next_month, next_holidays)
+                        # 祝日を検索
+                        for h in this_holidays:
+                            if h >= today_day:
+                                for row in range(rows_num):
+                                    if row > 0:
+                                        for col in range(6):
+                                            d = driver.find_element_by_xpath(f'//*[@id="calendar"]/table[2]/tbody/tr[{row + 1}]/td[{col + 1}]')
+                                            if len(d.text) > 0 and int(d.text) == h:
+                                                d.click()
+                                                # 空きをチェック
+                                                hol_se = config.HOL.split('-')
+                                                if col == 0:
+                                                    hol_se.insert(0, '日祝')
+                                                if col == 1:
+                                                    hol_se.insert(0, '月祝')
+                                                if col == 2:
+                                                    hol_se.insert(0, '火祝')
+                                                if col == 3:
+                                                    hol_se.insert(0, '水祝')
+                                                if col == 4:
+                                                    hol_se.insert(0, '木祝')
+                                                if col == 5:
+                                                    hol_se.insert(0, '金祝')
+                                                if col == 6:
+                                                    hol_se.insert(0, '土祝')
+                                                checkEmpty(driver, park, today_month, date, hol_se)
 
-                # 翌月のチェック終わったら公園名の選択画面へ戻る
-                driver.get(url1)
-                btn = driver.find_element_by_xpath('//*[@id="nameSearch"]')
-                btn.click()
+                        # 翌月へ移動
+                        print('今月最終日なので翌月に移動します')
+                        next_btn = driver.find_element_by_xpath('//*[@id="calendar"]/table[1]/tbody/tr/td/div/a')
+                        next_btn.click()
+                        print('翌月のチェックを開始')
+                        checkNextMonth(driver, dayOfWeek_array, park, next_month, next_holidays)
 
-    # 結果をフォーマット
-    result.sort()
-    date1 = ''
-    final_result = []
-    for item in result:
-        date2 = item.split('_')[0]
-        others = item.split('_')[1]
-        if date1 == date2:
-            final_result.append([others])
-        else:
-            final_result.append([date2])
-            final_result.append([others])
-            date1 = date2
+                        # 翌月のチェック終わったら公園名の選択画面へ戻る
+                        driver.get(url1)
+                        btn = driver.find_element_by_xpath('//*[@id="nameSearch"]')
+                        btn.click()
 
-    # 変更チェック
-    history = readCsv() # 前回の結果
-    if history == final_result:
-        print('前回と変更なし')
-    # 空きが出た場合
-    elif len(history) < len(final_result):
-        writeCsv(final_result)
-        # LINE通知
-        message = '【テニスコート空き状況】\n'
-        for item2 in final_result:
-            #日付なら改行入れる（最初は入れない）
-            if item2[0] == final_result[0]:
-                print('最初')
-            elif '〜' not in item2[0]:
-                message += '\n'
-            message += f'{item2[0]}\n'
-        send_line_notify(message)
-    # コートに空きがない場合
-    elif len(final_result) == 0:
-        writeCsv(final_result)
-        send_line_notify('空きコートはありません。')
-    # コートが埋まった場合（通知なし）
-    else:
-        writeCsv(final_result)
-        # LINE通知
-        # message = '【テニスコート空き状況】\n'
-        # for item2 in final_result:
-        #     #日付なら改行入れる（最初は入れない）
-        #     if item2[0] == final_result[0]:
-        #         print('最初')
-        #     elif '〜' not in item2[0]:
-        #         message += '\n'
-        #     message += f'{item2[0]}\n'
-        # send_line_notify(message)
+            # 結果をフォーマット
+            result.sort()
+            date1 = ''
+            final_result = []
+            for item in result:
+                date2 = item.split('_')[0]
+                others = item.split('_')[1]
+                if date1 == date2:
+                    final_result.append([others])
+                else:
+                    final_result.append([date2])
+                    final_result.append([others])
+                    date1 = date2
 
+            # 変更チェック
+            history = readCsv() # 前回の結果
+            if history == final_result:
+                print('前回と変更なし')
+            # 空きが出た場合
+            elif len(history) < len(final_result):
+                writeCsv(final_result)
+                # LINE通知
+                message = '【テニスコート空き状況】\n'
+                for item2 in final_result:
+                    #日付なら改行入れる（最初は入れない）
+                    if item2[0] == final_result[0]:
+                        print('最初')
+                    elif '〜' not in item2[0]:
+                        message += '\n'
+                    message += f'{item2[0]}\n'
+                send_line_notify(message)
+            # コートに空きがない場合
+            elif len(final_result) == 0:
+                writeCsv(final_result)
+                send_line_notify('空きコートはありません。')
+            # コートが埋まった場合（通知なし）
+            else:
+                writeCsv(final_result)
+                # LINE通知
+                # message = '【テニスコート空き状況】\n'
+                # for item2 in final_result:
+                #     #日付なら改行入れる（最初は入れない）
+                #     if item2[0] == final_result[0]:
+                #         print('最初')
+                #     elif '〜' not in item2[0]:
+                #         message += '\n'
+                #     message += f'{item2[0]}\n'
+                # send_line_notify(message)
+        except Exception as e:
+            # import traceback
+            # traceback.print_exc()
+            if i == 2:
+                err_title = e.__class__.__name__ # エラータイトル
+                message = f'例外発生！\n\n{err_title}\n{e.args}'
+                send_line_notify(message, config.LNT_FOR_ERROR)
+            pass
+
+        else: # 例外が発生しなかった時だけ実行される
+            break  # 失敗しなかった時はループを抜ける
 
 # 翌月のチェック
 def checkNextMonth(driver, dayOfWeek_array, park, month, next_holidays):
