@@ -1,4 +1,5 @@
 from curses.ascii import NUL
+from pty import slave_open
 from xml.etree.ElementPath import xpath_tokenizer
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
@@ -40,12 +41,6 @@ worksheet = spreadsheet.worksheet('東京都スポーツ施設サービス') # �
 # list_of_hashes = sheet.get_all_records()
 # print(list_of_hashes)
 
-
-
-
-
-
-
 # Headless Chromeをあらゆる環境で起動させるオプション
 # 省メモリ化しないとメモリ不足でクラッシュする
 options = Options()
@@ -62,11 +57,14 @@ options.add_argument(f'user-agent={UA}')
 result = []
 
 def writeSheet(data):
-    worksheet.delete_rows(1) # 1行目を削除
+    worksheet.delete_rows(1) # 1行目(空き状況)を削除
+    worksheet.delete_rows(2) # 2行目(計測時間)を削除
     worksheet.append_row(data) # dataを最終行に挿入
 
-
 def main():
+    # 処理時間計測①：開始
+    start_time = time.perf_counter()
+
     for i in range(3):  # 最大3回実行
         try:
             # 「東京都スポーツ施設サービス」のURL
@@ -236,7 +234,7 @@ def main():
             if history == final_result:
                 print('前回と変更なし')
             # 空きが出た場合
-            elif len(history) < len(final_result):
+            elif len(history) <= len(final_result):
                 print('コート増えた：通知あり')
                 writeSheet(final_result)
                 # LINE通知
@@ -256,6 +254,15 @@ def main():
             else:
                 print('コートへった：通知なし')
                 writeSheet(final_result)
+
+            # 処理時間計測②：修了
+            end_time = time.perf_counter()
+            # 経過時間を出力(秒)
+            elapsed_time = end_time - start_time
+            worksheet.update_acell('A2', str(today))
+            worksheet.update_acell('B2', elapsed_time)
+            print(elapsed_time)
+            # worksheet.append_row() # 時間を最終行(2行目)に挿入
 
         except Exception as e:
             # import traceback
