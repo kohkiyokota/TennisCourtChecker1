@@ -144,6 +144,8 @@ def main():
             btn = driver.find_element(by=By.XPATH, value='//*[@id="nameSearch"]')
             btn.click()
 
+            send_line_notify('test2')
+
             # # ################################
             # # 公園名ごとにデータを取得
             # # ################################
@@ -233,6 +235,8 @@ def main():
             history = worksheet.row_values(1)
             print(final_result)
             print(history)
+
+            send_line_notify("history ok")
 
             # 変更チェック
             if history == final_result:
