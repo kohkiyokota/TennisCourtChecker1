@@ -249,6 +249,7 @@ def main():
             # コートに空きがない場合
             elif len(final_result) == 0:
                 print('空きなし：通知あり')
+                # worksheet.delete_rows(0) # 1行目(空き状況)を削除
                 writeSheet(final_result)
                 send_line_notify('空きコートはありません。')
             # コートが埋まった場合（通知なし）
@@ -260,7 +261,7 @@ def main():
             end_time = time.perf_counter()
             # 経過時間を出力(秒)
             elapsed_time = end_time - start_time
-            worksheet.update_acell('A2', now.strftime('%Y-%m-%d %H:%M:%S'))
+            # worksheet.update_acell('A2', now.strftime('%Y-%m-%d %H:%M:%S'))
             worksheet.update_acell('B2', elapsed_time)
             print(elapsed_time)
             # worksheet.append_row() # 時間を最終行(2行目)に挿入
