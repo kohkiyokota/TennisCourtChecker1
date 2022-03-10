@@ -144,8 +144,6 @@ def main():
             btn = driver.find_element(by=By.XPATH, value='//*[@id="nameSearch"]')
             btn.click()
 
-            send_line_notify('test2')
-
             # # ################################
             # # 公園名ごとにデータを取得
             # # ################################
@@ -230,6 +228,9 @@ def main():
                     final_result.append(date2)
                     final_result.append(others)
                     date1 = date2
+
+            send_line_notify('test3')
+            send_line_notify(final_result)
 
             # spreadsheetの1業目を取得（これとfinal resultを比較！）
             history = worksheet.row_values(1)
