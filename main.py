@@ -240,7 +240,7 @@ def main():
                 print('コート増えた：通知あり')
                 writeSheet(final_result)
                 # LINE通知
-                message = '\n【テニスコート空き状況】\n'
+                message = '\n【テニスコート空き状況：都営】\n'
                 for item2 in final_result:
                     #日付なら改行入れる
                     if '〜' not in item2:
