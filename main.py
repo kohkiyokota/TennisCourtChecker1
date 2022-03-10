@@ -65,6 +65,8 @@ def main():
     # 処理時間計測①：開始
     start_time = time.perf_counter()
 
+    send_line_notify('test')
+
     for i in range(3):  # 最大3回実行
         try:
             # 「東京都スポーツ施設サービス」のURL
