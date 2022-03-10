@@ -65,8 +65,6 @@ def main():
     # 処理時間計測①：開始
     start_time = time.perf_counter()
 
-    send_line_notify('test')
-
     for i in range(3):  # 最大3回実行
         try:
             # 「東京都スポーツ施設サービス」のURL
@@ -229,15 +227,12 @@ def main():
                     final_result.append(others)
                     date1 = date2
 
-            send_line_notify('test3')
-            send_line_notify(final_result)
-
             # spreadsheetの1業目を取得（これとfinal resultを比較！）
             history = worksheet.row_values(1)
+            print('取得結果')
             print(final_result)
+            print('前回の取得結果')
             print(history)
-
-            send_line_notify("history ok")
 
             # 変更チェック
             if history == final_result:
