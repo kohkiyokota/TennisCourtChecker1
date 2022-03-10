@@ -74,7 +74,8 @@ def main():
             # # 日時を取得・計算
             # # ################################
             today = datetime.today()
-            now = datetime.now()
+            now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
             today_year =  int('20' + datetime.strftime(today, '%y'))
 
             today_month = datetime.strftime(today, '%m')
@@ -261,7 +262,7 @@ def main():
             end_time = time.perf_counter()
             # 経過時間を出力(秒)
             elapsed_time = end_time - start_time
-            # worksheet.update_acell('A2', now.strftime('%Y-%m-%d %H:%M:%S'))
+            worksheet.update_acell('A2', now)
             worksheet.update_acell('B2', elapsed_time)
             print(elapsed_time)
             # worksheet.append_row() # 時間を最終行(2行目)に挿入
