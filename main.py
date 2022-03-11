@@ -35,7 +35,7 @@ creds = ServiceAccountCredentials.from_json_keyfile_name('client_secret.json', s
 client = gspread.authorize(creds)
 
 spreadsheet = client.open('TennisCourtChecker') # 操作したいスプレッドシートの名前を指定する
-worksheet = spreadsheet.worksheet('東京都スポーツ施設サービスt') # シートを指定する
+worksheet = spreadsheet.worksheet('東京都スポーツ施設サービス') # シートを指定する
 
 # Extract and print all of the values
 # list_of_hashes = sheet.get_all_records()
