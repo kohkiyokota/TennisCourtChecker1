@@ -35,7 +35,7 @@ creds = ServiceAccountCredentials.from_json_keyfile_name('client_secret.json', s
 client = gspread.authorize(creds)
 
 spreadsheet = client.open('TennisCourtChecker') # 操作したいスプレッドシートの名前を指定する
-worksheet = spreadsheet.worksheet('東京都スポーツ施設サービス') # シートを指定する
+worksheet = spreadsheet.worksheet('東京都スポーツ施設サービスt') # シートを指定する
 
 # Extract and print all of the values
 # list_of_hashes = sheet.get_all_records()
@@ -222,6 +222,8 @@ def main():
             for item in result:
                 date2 = item.split('_')[0]
                 others = item.split('_')[1]
+                if others[0] == '0':
+                    others = others[1:-1]
                 if date1 == date2:
                     final_result.append(others)
                 else:
@@ -400,6 +402,8 @@ def checkEmpty(driver, park, month, day, se):
                           end = str(int(start.replace(':00', '')) + (int(start.replace(':00', '')) - before_start)) + ':00'
                         else:
                             end = driver.find_element(by=By.XPATH, value=f'//*[@id="isNotEmptyPager"]/table[{syumoku_index + 1}]/tbody/tr[2]/td[{time_index + 2}]').text 
+                        if start == '9:00':
+                            start = '09:00'
                         result.append(f'{month_day}_{start}〜{end}@{park} {td}面')
 
         # ②テニス（ハード）があれば次へ
@@ -424,9 +428,10 @@ def checkEmpty(driver, park, month, day, se):
                           end = str(int(start.replace(':00', '')) + (int(start.replace(':00', '')) - before_start)) + ':00'
                         else:
                             end = driver.find_element(by=By.XPATH, value=f'//*[@id="isNotEmptyPager"]/table[{syumoku_index + 1}]/tbody/tr[2]/td[{time_index + 2}]').text 
+                        if start == '9:00':
+                            start = '09:00'
                         result.append(f'{month_day}_{start}〜{end}@{park} {td}面')
 
 
 if __name__ == "__main__":
     main()
-
