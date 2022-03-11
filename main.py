@@ -56,9 +56,11 @@ options.add_argument(f'user-agent={UA}')
 
 result = []
 
+
+
 def writeSheet(data):
-    worksheet.delete_rows(1) # 1行目(空き状況)を削除
     worksheet.delete_rows(2) # 2行目(計測時間)を削除
+    worksheet.delete_rows(1) # 1行目(空き状況)を削除
     worksheet.append_row(data) # dataを最終行に挿入
 
 def main():
