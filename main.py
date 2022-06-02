@@ -11,63 +11,110 @@ from selenium.webdriver.chrome.options import Options
 from datetime import datetime, timedelta
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome import service
-
-import config
+import os.path
 import time
 from datetime import datetime, date, timedelta
 import jpholiday
+import calendar
 
-# from ast import Or
-# from urllib import request  # urllib.requestモジュールをインポート
+# 重複防止用
+import fcntl
 
 # 自作モジュール
 from modules.sendLine import send_line_notify
 
-
 # # ################################
-# # スプレッドシート読み込み
+# # スプレッドシートから設定を読み込む
 # # ################################
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
 scope =['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-creds = ServiceAccountCredentials.from_json_keyfile_name('client_secret.json', scope)
+# 認証情報を相対パスで取得・設定
+# dirname = os.getcwd()
+# cred_dir = os.path.join(dirname, 'client_secret.json')
+creds = ServiceAccountCredentials.from_json_keyfile_name('/home/admin/TennisCourtChecker/client_secret.json', scope)
+# creds = ServiceAccountCredentials.from_json_keyfile_name(cred_dir, scope)
 client = gspread.authorize(creds)
 
 spreadsheet = client.open('TennisCourtChecker') # 操作したいスプレッドシートの名前を指定する
 worksheet = spreadsheet.worksheet('東京都スポーツ施設サービス') # シートを指定する
 
-# Extract and print all of the values
-# list_of_hashes = sheet.get_all_records()
-# print(list_of_hashes)
-
-# Headless Chromeをあらゆる環境で起動させるオプション
-# 省メモリ化しないとメモリ不足でクラッシュする
-options = Options()
-options.add_argument('--headless')
-options.add_argument('--disable-gpu')
-options.add_argument('--no-sandbox')
-options.add_argument('--disable-dev-shm-usage')
-options.add_argument('--remote-debugging-port=9222')
-# options.add_argument('window-size=500,500')
-# UA指定しないとTikTok弾かれる
-UA = 'SetEnvIfNoCase User-Agent "NaverBot" getout'
-options.add_argument(f'user-agent={UA}')
+configSheet = spreadsheet.worksheet('設定_都営')
+SUN = configSheet.acell('C3').value
+MON = configSheet.acell('C4').value
+TUE = configSheet.acell('C5').value
+WED = configSheet.acell('C6').value
+THU = configSheet.acell('C7').value
+FRI = configSheet.acell('C8').value
+SAT = configSheet.acell('C9').value
+HOL = configSheet.acell('C10').value
+TOKEN = configSheet.acell('C14').value
+LNT_FOR_ERROR = configSheet.acell('C15').value
 
 result = []
 
-
-
+# ###########################
+# スプレッドシートに記載する
+# ###########################
 def writeSheet(data):
     worksheet.delete_rows(2) # 2行目(計測時間)を削除
     worksheet.delete_rows(1) # 1行目(空き状況)を削除
     worksheet.append_row(data) # dataを最終行に挿入
 
+# ###########################
+# 要素を取得する（単数）
+# ###########################
+def getElement(xpath, wait_second, retries_count):
+    error = ''
+    for _ in range(retries_count):
+        try:
+            # 失敗しそうな処理
+            selector = xpath
+            element = WebDriverWait(driver, wait_second).until(
+              EC.visibility_of_element_located((By.XPATH, selector))
+            )
+        except Exception as e:
+            # エラーメッセージを格納する
+            error = e
+        else:
+            # 失敗しなかった場合は、ループを抜ける
+            break
+    else:
+        # リトライが全部失敗したときの処理。エラー内容(error)や実行時間、操作中のURL、セレクタ、スクショなどを通知する。
+        send_line_notify(error, LNT_FOR_ERROR)
+        exit() # プログラムを強制終了する
+    return element
+
+# ###########################
+# 要素を取得する（複数）
+# ###########################
+def getElements(xpath, wait_second, retries_count):
+    error = ''
+    for _ in range(retries_count):
+        try:
+            # 失敗しそうな処理
+            selector = xpath
+            elements = WebDriverWait(driver, wait_second).until(
+              EC.visibility_of_all_elements_located((By.XPATH, selector))
+            )
+        except Exception as e:
+            # エラーメッセージを格納する
+            error = e
+        else:
+            # 失敗しなかった場合は、ループを抜ける
+            break
+    else:
+        # リトライが全部失敗したときの処理。エラー内容(error)や実行時間、操作中のURL、セレクタ、スクショなどを通知する。
+        send_line_notify(error, LNT_FOR_ERROR)
+        exit() # プログラムを強制終了する
+    return elements
+
 def main():
     # 処理時間計測①：開始
     start_time = time.perf_counter()
 
-    for i in range(3):  # 最大3回実行
+    for x in range(3):  # 最大3回実行
         try:
             # 「東京都スポーツ施設サービス」のURL
             url1 = 'https://yoyaku.sports.metro.tokyo.lg.jp/user/view/user/homeIndex.html'
@@ -104,6 +151,16 @@ def main():
             # next_year
 
             # # ################################
+            # # 22日までなら当月、それ以降なら翌月
+            # # ################################
+            if today_day < 22:
+                print('今月まで')
+                goNextMonth = False
+            else:
+                print('来月まで')
+                goNextMonth = True
+
+            # # ################################
             # # 設定をもとに曜日と日時の配列を作成
             # # ################################
 
@@ -114,8 +171,9 @@ def main():
             this_holidays = []
             next_holidays = []
 
+
             # もし曜日指定に「祝日」が入っていたら
-            if len(config.HOL) > 0:
+            if len(HOL) > 1:
                 print('祝日入ってる')
                 # 今月の祝日を取得
                 for hl1 in jpholiday.month_holidays(today_year, today_month):
@@ -133,33 +191,33 @@ def main():
             # # ################################
 
             # 環境変数に設定されている公園を取得（東京都スポーツ施設サービス）
-            PARKS = config.PARKS
+            PARKS = configSheet.acell('C12').value
             parks_array = PARKS.split(',')
 
-            driver = webdriver.Chrome(executable_path=ChromeDriverManager().install(), options=options)
-            driver.implicitly_wait(60)
             driver.get(url1)
 
-            # step1: 公園選択画面へ行く
-            btn = driver.find_element(by=By.XPATH, value='//*[@id="nameSearch"]')
-            btn.click()
+            time.sleep(5)
 
             # # ################################
             # # 公園名ごとにデータを取得
             # # ################################
             for park in parks_array:
-                parks_nums = len(driver.find_elements(by=By.XPATH, value='//*[@id="resultItems"]/tr'))
+
+                # step1: 公園選択画面へ行く
+                btn = getElement('//*[@id="nameSearch"]', 20, 3)
+                btn.click()
+
+                parks_nums = len(getElements('//*[@id="resultItems"]/tr', 20, 3))
                 for i in range(parks_nums):
                     # ①合致する公園名があれば次へ
-                    if driver.find_element(by=By.XPATH, value=f'//*[@id="resultItems"]/tr[{str(i + 1)}]/td[1]/span').text == park:
+                    if getElement(f'//*[@id="resultItems"]/tr[{str(i + 1)}]/td[1]/span', 20, 3).text == park:
                         print(f'「{park}」の情報の取得を開始')
-                        # result.append(park)
                         # 公園のページへ移動
-                        btn_list = driver.find_elements(by=By.XPATH, value='//*[@id="srchBtn"]')                
+                        btn_list = getElements('//*[@id="srchBtn"]', 20, 3)
                         btn_list[i].click()
 
                         # カレンダーの段数を計算
-                        rows_num = len(driver.find_elements(by=By.XPATH, value='//*[@id="calendar"]/table[2]/tbody/tr'))
+                        rows_num = len(getElements('//*[@id="calendar"]/table[2]/tbody/tr', 20, 3))
 
                         for row in range(rows_num):
                             # １段目は曜日なので飛ばす
@@ -168,13 +226,13 @@ def main():
                                 for dow_se in dayOfWeek_array:
                                     # 指定された曜日であれば
                                     if dow_se != 0:
-                                        day = driver.find_element(by=By.XPATH, value=f'//*[@id="calendar"]/table[2]/tbody/tr[{row + 1}]/td[{dayOfWeek_array.index(dow_se) + 1}]')
+                                        day = getElement(f'//*[@id="calendar"]/table[2]/tbody/tr[{row + 1}]/td[{dayOfWeek_array.index(dow_se) + 1}]', 20, 3)
                                         # 日付があり、今日以降で、祝日じゃなければ日付をクリックして空きをチェック
                                         if day.text and int(day.text) >= today_day and int(day.text) not in this_holidays:
                                             date = day.text # 日付：クリックすると変わってしまうから変数に入れとく
                                             day.click()
                                             # 空きをチェック
-                                            checkEmpty(driver, park, today_month, date, dow_se)
+                                            checkEmpty(park, today_month, int(date), dow_se)
 
                         # 祝日を検索
                         for h in this_holidays:
@@ -182,11 +240,12 @@ def main():
                                 for row in range(rows_num):
                                     if row > 0:
                                         for col in range(6):
-                                            d = driver.find_element(by=By.XPATH, value=f'//*[@id="calendar"]/table[2]/tbody/tr[{row + 1}]/td[{col + 1}]')
+                                            d = getElement(f'//*[@id="calendar"]/table[2]/tbody/tr[{row + 1}]/td[{col + 1}]', 20, 3)
                                             if len(d.text) > 0 and int(d.text) == h:
+                                                date = d.text # 日付：クリックすると変わってしまうから変数に入れとく
                                                 d.click()
                                                 # 空きをチェック
-                                                hol_se = config.HOL.split('-')
+                                                hol_se = HOL.split('-')
                                                 if col == 0:
                                                     hol_se.insert(0, '日祝')
                                                 if col == 1:
@@ -201,19 +260,27 @@ def main():
                                                     hol_se.insert(0, '金祝')
                                                 if col == 6:
                                                     hol_se.insert(0, '土祝')
-                                                checkEmpty(driver, park, today_month, date, hol_se)
+                                                checkEmpty(park, today_month, int(date), hol_se)
 
-                        # 翌月へ移動
-                        print('今月最終日なので翌月に移動します')
-                        next_btn = driver.find_element(by=By.XPATH, value='//*[@id="calendar"]/table[1]/tbody/tr/td/div/a')
-                        next_btn.click()
-                        print('翌月のチェックを開始')
-                        checkNextMonth(driver, dayOfWeek_array, park, next_month, next_holidays)
+                        if goNextMonth:
+                            # 翌月へ移動
+                            print('今月最終日なので翌月に移動します')
+                            next_btn = getElement('//*[@id="calendar"]/table[1]/tbody/tr/td/div/a', 20, 3)
+                            next_btn.click()
+                            print('翌月のチェックを開始')
+                            checkNextMonth(dayOfWeek_array, park, next_month, next_holidays)
 
-                        # 翌月のチェック終わったら公園名の選択画面へ戻る
+                        # 現在の公園のチェック終わったら公園名の選択画面へ戻る
                         driver.get(url1)
-                        btn = driver.find_element(by=By.XPATH, value='//*[@id="nameSearch"]')
-                        btn.click()
+                        btn2 = getElement('//*[@id="nameSearch"]', 20, 3)
+                        btn2.click()
+
+                        time.sleep(5)
+
+
+            # Chromeを終了
+            # driver.close()
+            # driver.quit()
 
             # 結果をフォーマット
             result.sort()
@@ -245,101 +312,36 @@ def main():
             elif len(history) <= len(final_result):
                 print('コート増えた：通知あり')
                 writeSheet(final_result)
-                # LINE通知
-                message = '\n【テニスコート空き状況：都営】\n'
-                message2 = '\n\n'
-                message3 = '\n\n'
-                message4 = '\n\n'
 
-                if len(final_result) > 120:
-                    m1 = final_result[0:40]
-                    for item2 in m1:
+                # #######################################
+                # LINE通知 ###############################
+                # #######################################
+                result_length = len(final_result) # 結果数
+                pages = result_length // 40 + 1    # LINEの通数
+
+                for page in range(pages):
+                    if page == 0:
+                        message = '\n【テニスコート空き状況：都営】\n'
+                    else:
+                        message = '\n\n'
+
+                    m = final_result[40 * page: 40 * (page + 1)]
+                    for item2 in m:
                         #日付なら改行入れる
                         if '〜' not in item2:
                             message += '\n'
                         message += f'{item2}\n'
-                    send_line_notify(message)
-
-                    m2 = final_result[40:80]
-                    for item2 in m2:
-                        #日付なら改行入れる
-                        if '〜' not in item2:
-                            message2 += '\n'
-                        message2 += f'{item2}\n'
-                    send_line_notify(message2)
-
-                    m3 = final_result[80:120]
-                    for item2 in m3:
-                        #日付なら改行入れる
-                        if '〜' not in item2:
-                            message3 += '\n'
-                        message3 += f'{item2}\n'
-                    send_line_notify(message3)
-
-                    m4 = final_result[120:]
-                    for item2 in m4:
-                        #日付なら改行入れる
-                        if '〜' not in item2:
-                            message4 += '\n'
-                        message4 += f'{item2}\n'
-                    send_line_notify(message4)
-
-                elif len(final_result) > 80:
-                    m1 = final_result[0:40]
-                    for item2 in m1:
-                        #日付なら改行入れる
-                        if '〜' not in item2:
-                            message += '\n'
-                        message += f'{item2}\n'
-                    send_line_notify(message)
-
-                    m2 = final_result[40:80]
-                    for item2 in m2:
-                        #日付なら改行入れる
-                        if '〜' not in item2:
-                            message2 += '\n'
-                        message2 += f'{item2}\n'
-                    send_line_notify(message2)
-
-                    m3 = final_result[80:]
-                    for item2 in m3:
-                        #日付なら改行入れる
-                        if '〜' not in item2:
-                            message3 += '\n'
-                        message3 += f'{item2}\n'
-                    send_line_notify(message3)
-
-                elif len(final_result) > 40:
-                    m1 = final_result[0:40]
-                    for item2 in m1:
-                        #日付なら改行入れる
-                        if '〜' not in item2:
-                            message += '\n'
-                        message += f'{item2}\n'
-                    send_line_notify(message)
-
-                    m2 = final_result[40:]
-                    for item2 in m2:
-                        #日付なら改行入れる
-                        if '〜' not in item2:
-                            message2 += '\n'
-                        message2 += f'{item2}\n'
-                    send_line_notify(message2)
-
-                else:
-                    for item2 in final_result:
-                        #日付なら改行入れる
-                        if '〜' not in item2:
-                            message += '\n'
-                        message += f'{item2}\n'
-                    send_line_notify(message)
+                    
+                    send_line_notify(message, TOKEN)
+                    send_line_notify(message, LNT_FOR_ERROR)
 
             # コートに空きがない場合
             elif len(final_result) == 0:
                 print('空きなし：通知あり')
                 # worksheet.delete_rows(0) # 1行目(空き状況)を削除
                 writeSheet(final_result)
-                send_line_notify('空きコートはありません。')
+                send_line_notify('空きコートはありません。', TOKEN)
+                send_line_notify('空きコートはありません。', LNT_FOR_ERROR)
             # コートが埋まった場合（通知なし）
             else:
                 print('コートへった：通知なし')
@@ -357,19 +359,21 @@ def main():
         except Exception as e:
             # import traceback
             # traceback.print_exc()
-            if i == 2:
+            # driver.close()
+            # driver.quit()
+            if x == 2:
                 err_title = e.__class__.__name__ # エラータイトル
-                message = f'例外発生！\n\n{err_title}\n{e.args}'
-                send_line_notify(message, config.LNT_FOR_ERROR)
+                message = f'\n【都営】\n\n例外発生！\n\n{err_title}\n{e.args}'
+                send_line_notify(message, LNT_FOR_ERROR)
             pass
 
         else: # 例外が発生しなかった時だけ実行される
             break  # 失敗しなかった時はループを抜ける
 
 # 翌月のチェック
-def checkNextMonth(driver, dayOfWeek_array, park, month, next_holidays):
+def checkNextMonth(dayOfWeek_array, park, month, next_holidays):
     # カレンダーが何段か計算
-    rows_num2 = len(driver.find_elements(by=By.XPATH, value='//*[@id="calendar"]/table[2]/tbody/tr'))
+    rows_num2 = len(getElements('//*[@id="calendar"]/table[2]/tbody/tr', 20, 3))
 
     for row in range(rows_num2):
         # １段目は曜日なので飛ばす
@@ -377,24 +381,25 @@ def checkNextMonth(driver, dayOfWeek_array, park, month, next_holidays):
             for dow_se in dayOfWeek_array:
                 # 指定された曜日であれば
                 if dow_se != 0:
-                    day = driver.find_element(by=By.XPATH, value=f'//*[@id="calendar"]/table[2]/tbody/tr[{row + 1}]/td[{dayOfWeek_array.index(dow_se) + 1}]')
+                    day = getElement(f'//*[@id="calendar"]/table[2]/tbody/tr[{row + 1}]/td[{dayOfWeek_array.index(dow_se) + 1}]', 20, 3)
                     # 日付があ理、祝日じゃなければ日付をクリックして空きをチェック
                     if day.text and int(day.text) not in next_holidays:
                         date2 = day.text # 日付：クリックすると変わってしまうから変数に入れとく
                         day.click()
                         # 空きをチェック
-                        checkEmpty(driver, park, month, date2, dow_se)
+                        checkEmpty(park, month, int(date2), dow_se)
 
     # 祝日を検索
     for h in next_holidays:
             for row in range(rows_num2):
                 if row > 0:
                     for col in range(6):
-                        d = driver.find_element(by=By.XPATH, value=f'//*[@id="calendar"]/table[2]/tbody/tr[{row + 1}]/td[{col + 1}]')
+                        d = getElement(f'//*[@id="calendar"]/table[2]/tbody/tr[{row + 1}]/td[{col + 1}]', 20, 3)
                         if len(d.text) > 0 and int(d.text) == h:
+                            date3 = d.text
                             d.click()
                             # 空きをチェック
-                            hol_se = config.HOL.split('-')
+                            hol_se = HOL.split('-')
                             if col == 0:
                                 hol_se.insert(0, '日祝')
                             if col == 1:
@@ -409,53 +414,60 @@ def checkNextMonth(driver, dayOfWeek_array, park, month, next_holidays):
                                 hol_se.insert(0, '金祝')
                             if col == 6:
                                 hol_se.insert(0, '土祝')
-                            checkEmpty(driver, park, month, date, hol_se)
+                            checkEmpty(park, month, int(date3), hol_se)
 
     print('翌月のチェック終了')
 
 # 設定をもとに曜日と時間帯の配列を作成
 def calcDayOfWeek():
     dayOfWeek_array = []
-    if len(config.SUN) > 0:
-        dayOfWeek_array.append(config.SUN.split('-'))
+    if len(SUN) > 1:
+        dayOfWeek_array.append(SUN.split('-'))
         dayOfWeek_array[0].insert(0, '日')
     else:
         dayOfWeek_array.append(NUL)
-    if len(config.MON) > 0:
-        dayOfWeek_array.append(config.MON.split('-'))
+    if len(MON) > 1:
+        dayOfWeek_array.append(MON.split('-'))
         dayOfWeek_array[1].insert(0, '月')
     else:
         dayOfWeek_array.append(NUL)
-    if len(config.TUE) > 0:
-        dayOfWeek_array.append(config.TUE.split('-'))
+    if len(TUE) > 1:
+        dayOfWeek_array.append(TUE.split('-'))
         dayOfWeek_array[2].insert(0, '火')
     else:
         dayOfWeek_array.append(NUL)
-    if len(config.WED) > 0:
-        dayOfWeek_array.append(config.WED.split('-'))
+    if len(WED) > 1:
+        dayOfWeek_array.append(WED.split('-'))
         dayOfWeek_array[3].insert(0, '水')
     else:
         dayOfWeek_array.append(NUL)
-    if len(config.THU) > 0:
-        dayOfWeek_array.append(config.THU.split('-'))
+    if len(THU) > 1:
+        dayOfWeek_array.append(THU.split('-'))
         dayOfWeek_array[4].insert(0, '木')
     else:
         dayOfWeek_array.append(NUL)
-    if len(config.FRI) > 0:
-        dayOfWeek_array.append(config.FRI.split('-'))
+    if len(FRI) > 1:
+        dayOfWeek_array.append(FRI.split('-'))
         dayOfWeek_array[5].insert(0, '金')
     else:
         dayOfWeek_array.append(NUL)
-    if len(config.SAT) > 0:
-        dayOfWeek_array.append(config.SAT.split('-'))
+    if len(SAT) > 1:
+        dayOfWeek_array.append(SAT.split('-'))
         dayOfWeek_array[6].insert(0, '土')
     else:
         dayOfWeek_array.append(NUL)
     return dayOfWeek_array
 
 # 空き状況を検索
-def checkEmpty(driver, park, month, day, se):
-    syumoku_list = driver.find_elements(by=By.XPATH, value='//*[@id="ppsname"]')
+def checkEmpty(park, month, day, se):
+    syumoku_list = getElements('//*[@id="ppsname"]', 20, 3)
+
+    # ソート用に月と日を2桁にする
+    if int(month) < 10:
+        month = '0' + str(month)
+    if int(day) < 10:
+        day = '0' + str(day)
+
     # 種目にテニスがあるかチェック
     for syumoku in syumoku_list:
         START = int(se[1])
@@ -464,25 +476,26 @@ def checkEmpty(driver, park, month, day, se):
         # ②テニス（人工芝）があれば次へ
         if syumoku.text == 'テニス（人工芝）':
             syumoku_index = syumoku_list.index(syumoku)
-            times_num = len(driver.find_elements(by=By.XPATH, value=f'//*[@id="isNotEmptyPager"]/table[{syumoku_index + 1}]/tbody/tr[3]/td'))
+            times_num = len(getElements(f'//*[@id="isNotEmptyPager"]/table[{syumoku_index + 1}]/tbody/tr[3]/td', 20, 3))
             for time_index in range(times_num):
-                td = int(driver.find_element(by=By.XPATH, value=f'//*[@id="isNotEmptyPager"]/table[{syumoku_index + 1}]/tbody/tr[3]/td[{time_index + 1}]').text)
+                td = int(getElement(f'//*[@id="isNotEmptyPager"]/table[{syumoku_index + 1}]/tbody/tr[3]/td[{time_index + 1}]', 20, 3).text)
                 # ③もし0以上のセルがあれば次へ
                 if td > 0:
                     # 空いてる時間帯
-                    t = int(driver.find_element(by=By.XPATH, value=f'//*[@id="isNotEmptyPager"]/table[{syumoku_index + 1}]/tbody/tr[2]/td[{time_index + 1}]').text.replace(':00', ''))
+                    t = int(getElement(f'//*[@id="isNotEmptyPager"]/table[{syumoku_index + 1}]/tbody/tr[2]/td[{time_index + 1}]', 20, 3).text.replace(':00', ''))
                     # ④もし設定した時間内なら通知
                     if t >= START and t <= END:
                         park_name = park # 公園名
+
                         month_day = f'{month}/{day}（{se[0]}）'
                         # 開始時刻
-                        start = driver.find_element(by=By.XPATH, value=f'//*[@id="isNotEmptyPager"]/table[{syumoku_index + 1}]/tbody/tr[2]/td[{time_index + 1}]').text 
+                        start =  getElement(f'//*[@id="isNotEmptyPager"]/table[{syumoku_index + 1}]/tbody/tr[2]/td[{time_index + 1}]', 20, 3).text
                         # 終了時刻
                         if time_index + 1 == times_num:
-                          before_start = int(driver.find_element(by=By.XPATH, value=f'//*[@id="isNotEmptyPager"]/table[{syumoku_index + 1}]/tbody/tr[2]/td[{time_index}]').text.replace(':00', ''))
+                          before_start = int(getElement(f'//*[@id="isNotEmptyPager"]/table[{syumoku_index + 1}]/tbody/tr[2]/td[{time_index}]', 20, 3).text.replace(':00', ''))
                           end = str(int(start.replace(':00', '')) + (int(start.replace(':00', '')) - before_start)) + ':00'
                         else:
-                            end = driver.find_element(by=By.XPATH, value=f'//*[@id="isNotEmptyPager"]/table[{syumoku_index + 1}]/tbody/tr[2]/td[{time_index + 2}]').text 
+                            end = getElement(f'//*[@id="isNotEmptyPager"]/table[{syumoku_index + 1}]/tbody/tr[2]/td[{time_index + 2}]', 20, 3).text 
                         if start == '9:00':
                             start = '09:00'
                         result.append(f'{month_day}_{start}〜{end}@{park} {td}面')
@@ -490,29 +503,59 @@ def checkEmpty(driver, park, month, day, se):
         # ②テニス（ハード）があれば次へ
         if syumoku.text == 'テニス（ハード）':
             syumoku_index = syumoku_list.index(syumoku)
-            times_num = len(driver.find_elements(by=By.XPATH, value=f'//*[@id="isNotEmptyPager"]/table[{syumoku_index + 1}]/tbody/tr[3]/td'))
+            times_num = len(getElements(f'//*[@id="isNotEmptyPager"]/table[{syumoku_index + 1}]/tbody/tr[3]/td', 20, 3))
             for time_index in range(times_num):
-                td = int(driver.find_element(by=By.XPATH, value=f'//*[@id="isNotEmptyPager"]/table[{syumoku_index + 1}]/tbody/tr[3]/td[{time_index + 1}]').text)
+                td = int(getElement(f'//*[@id="isNotEmptyPager"]/table[{syumoku_index + 1}]/tbody/tr[3]/td[{time_index + 1}]', 20, 3).text)
                 # ③もし0以上のセルがあれば次へ
                 if td > 0:
                     # 空いてる時間帯
-                    t = int(driver.find_element(by=By.XPATH, value=f'//*[@id="isNotEmptyPager"]/table[{syumoku_index + 1}]/tbody/tr[2]/td[{time_index + 1}]').text.replace(':00', ''))
+                    t = int(getElement(f'//*[@id="isNotEmptyPager"]/table[{syumoku_index + 1}]/tbody/tr[2]/td[{time_index + 1}]', 20, 3).text.replace(':00', ''))
                     # ④もし設定した時間内なら通知
                     if t >= START and t <= END:
                         park_name = park # 公園名
+
                         month_day = f'{month}/{day}（{se[0]}）'
                         # 開始時刻
-                        start = driver.find_element(by=By.XPATH, value=f'//*[@id="isNotEmptyPager"]/table[{syumoku_index + 1}]/tbody/tr[2]/td[{time_index + 1}]').text 
+                        start =  getElement(f'//*[@id="isNotEmptyPager"]/table[{syumoku_index + 1}]/tbody/tr[2]/td[{time_index + 1}]', 20, 3).text
                         # 終了時刻
                         if time_index + 1 == times_num:
-                          before_start = int(driver.find_element(by=By.XPATH, value=f'//*[@id="isNotEmptyPager"]/table[{syumoku_index + 1}]/tbody/tr[2]/td[{time_index}]').text.replace(':00', ''))
+                          before_start = int(getElement(f'//*[@id="isNotEmptyPager"]/table[{syumoku_index + 1}]/tbody/tr[2]/td[{time_index}]', 20, 3).text.replace(':00', ''))
                           end = str(int(start.replace(':00', '')) + (int(start.replace(':00', '')) - before_start)) + ':00'
                         else:
-                            end = driver.find_element(by=By.XPATH, value=f'//*[@id="isNotEmptyPager"]/table[{syumoku_index + 1}]/tbody/tr[2]/td[{time_index + 2}]').text 
+                            end = getElement(f'//*[@id="isNotEmptyPager"]/table[{syumoku_index + 1}]/tbody/tr[2]/td[{time_index + 2}]', 20, 3).text 
                         if start == '9:00':
                             start = '09:00'
                         result.append(f'{month_day}_{start}〜{end}@{park} {td}面')
 
 
 if __name__ == "__main__":
-    main()
+    lockfilePath = 'lockfile.lock'
+    with open(lockfilePath , "w") as lockFile:
+        try:
+            fcntl.flock(lockFile, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            # Do SOMETHING
+            # Headless Chromeをあらゆる環境で起動させるオプション
+            # 省メモリ化しないとメモリ不足でクラッシュする
+            options = Options()
+            options.add_argument('--headless')
+            options.add_argument('--disable-gpu')
+            options.add_argument('--no-sandbox')
+            options.add_argument('--disable-dev-shm-usage')
+            # options.add_argument('--remote-debugging-port=9222')
+            # さくらでchrome not reachableエラー出たから追加
+            # options.add_argument("--single-process") 
+            # options.add_argument("--disable-setuid-sandbox") 
+            # options.add_argument('window-size=500,500')
+            # UA指定しないとTikTok弾かれる
+            UA = 'SetEnvIfNoCase User-Agent "NaverBot" getout'
+            options.add_argument(f'user-agent={UA}')
+            chrome_service = service.Service(executable_path=ChromeDriverManager().install())
+            driver = webdriver.Chrome(service=chrome_service, options=options) 
+            driver.implicitly_wait(20)
+            main()
+            driver.delete_all_cookies()
+            driver.close()
+            driver.quit()
+
+        except IOError:
+            print('process already exists')

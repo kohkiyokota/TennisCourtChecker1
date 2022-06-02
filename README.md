@@ -1,5 +1,10 @@
 # JPHoliday
 
+
+* * * * * /usr/sbin/pidof -x main.py > /dev/null || (. /home/admin/TennisCourtChecker/bin/activate && /usr/bin/python3 /home/admin/TennisCourtChecker/main.py && deactivate) > /tmp/log 2>&1
+
+
+
 [![image](https://img.shields.io/pypi/v/jpholiday.svg)](https://pypi.org/project/jpholiday/)
 [![image](https://img.shields.io/pypi/l/jpholiday.svg)](https://pypi.org/project/jpholiday/)
 [![image](https://img.shields.io/pypi/pyversions/jpholiday.svg)](https://pypi.org/project/jpholiday/)
